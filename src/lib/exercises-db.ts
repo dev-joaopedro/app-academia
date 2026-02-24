@@ -6,6 +6,7 @@ export interface Exercise {
     difficulty: "Iniciante" | "Intermediário" | "Avançado";
     description: string;
     tips: string[];
+    category?: string;
 }
 
 export const EXERCISES_DB: Exercise[] = [

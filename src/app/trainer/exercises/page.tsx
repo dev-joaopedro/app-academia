@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchIcon, DumbbellIcon, ChevronRightIcon, XIcon, CheckCircleIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EXERCISES_DB, Exercise } from "@/lib/exercises-db";
+import { Exercise } from "@/lib/exercises-db";
+import { getExercisesAction } from "@/app/actions/exercises";
+import { useEffect } from "react";
 
 const CATEGORIES = ["Todos", "Peitoral", "Costas", "Pernas", "Braços", "Ombros", "Abdômen", "Compostos"];
 
@@ -16,15 +18,27 @@ export default function ExerciseLibrary() {
     const [search, setSearch] = useState("");
     const [selectedDetail, setSelectedDetail] = useState<Exercise | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [exercises, setExercises] = useState<Exercise[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function load() {
+            setLoading(true);
+            const data = await getExercisesAction();
+            setExercises(data as Exercise[]);
+            setLoading(false);
+        }
+        load();
+    }, []);
 
     const filtered = useMemo(() => {
-        return EXERCISES_DB.filter(ex => {
-            const matchCat = activeCategory === "Todos" || ex.muscle === activeCategory;
+        return exercises.filter(ex => {
+            const matchCat = activeCategory === "Todos" || ex.muscle === activeCategory || ex.category === activeCategory;
             const matchSearch = ex.name.toLowerCase().includes(search.toLowerCase()) ||
                 ex.muscle.toLowerCase().includes(search.toLowerCase());
             return matchCat && matchSearch;
         });
-    }, [activeCategory, search]);
+    }, [activeCategory, search, exercises]);
 
     const toggleSelect = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -43,7 +57,7 @@ export default function ExerciseLibrary() {
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-black tracking-tight">Biblioteca</h1>
-                    <p className="text-sm text-muted-foreground">{EXERCISES_DB.length} exercícios disponíveis</p>
+                    <p className="text-sm text-muted-foreground">{exercises.length} exercícios disponíveis</p>
                 </div>
                 {selectedIds.length > 0 && (
                     <Button
@@ -92,10 +106,15 @@ export default function ExerciseLibrary() {
 
             {/* Lista */}
             <div className="flex flex-col gap-3">
-                {filtered.length === 0 && (
+                {loading ? (
+                    <div className="space-y-3">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="h-24 w-full bg-muted/20 animate-pulse rounded-2xl border border-border/20" />
+                        ))}
+                    </div>
+                ) : filtered.length === 0 ? (
                     <p className="text-center text-muted-foreground py-10 text-sm">Nenhum exercício encontrado.</p>
-                )}
-                {filtered.map((ex) => (
+                ) : filtered.map((ex) => (
                     <div key={ex.id} className="relative group">
                         <button
                             onClick={() => setSelectedDetail(ex)}

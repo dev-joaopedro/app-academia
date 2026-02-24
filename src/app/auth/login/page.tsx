@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { FlameIcon, ChromeIcon, AppleIcon, MailIcon, LockIcon, ArrowRightIcon, AlertCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getProfileByEmail } from "@/app/actions/auth";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -30,17 +31,24 @@ export default function LoginPage() {
 
         setLoading(true);
 
-        // Simulação local — trocar por Supabase quando configurado
-        await new Promise((r) => setTimeout(r, 600));
+        try {
+            const profile = await getProfileByEmail(email);
 
-        // Regra simples: qualquer e-mail com "trainer" vai para trainer dashboard
-        if (email.toLowerCase().includes("trainer") || email.toLowerCase().includes("personal")) {
-            router.push("/trainer/dashboard");
-        } else {
-            router.push("/student/dashboard");
+            if (profile) {
+                // Em produção real, validaríamos a senha aqui
+                if (profile.role === "trainer") {
+                    router.push("/trainer/dashboard");
+                } else {
+                    router.push("/student/dashboard");
+                }
+            } else {
+                setError("Usuário não encontrado. Verifique seu e-mail.");
+            }
+        } catch (err) {
+            setError("Erro ao conectar com o banco de dados.");
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     };
 
     return (
@@ -153,27 +161,8 @@ export default function LoginPage() {
                 </Button>
             </form>
 
-            {/* Acesso Rápido (Dev) */}
-            <div className="mt-6 space-y-2">
-                <p className="text-center text-xs text-muted-foreground font-medium uppercase tracking-widest">Acesso rápido</p>
-                <Button
-                    variant="ghost"
-                    className="w-full h-11 text-xs font-bold text-muted-foreground uppercase tracking-widest hover:text-primary"
-                    onClick={() => router.push("/student/dashboard")}
-                >
-                    Entrar como Aluno (demo)
-                </Button>
-                <Button
-                    variant="ghost"
-                    className="w-full h-11 text-xs font-bold text-muted-foreground uppercase tracking-widest hover:text-primary"
-                    onClick={() => router.push("/trainer/dashboard")}
-                >
-                    Entrar como Personal (demo)
-                </Button>
-            </div>
-
             {/* Footer */}
-            <div className="mt-auto pt-8 text-center">
+            <div className="mt-auto pt-8 text-center text-sm">
                 <p className="text-muted-foreground">
                     Ainda não tem conta?{" "}
                     <Link href="/auth/register" className="text-primary font-bold hover:underline">

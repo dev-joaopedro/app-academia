@@ -7,6 +7,7 @@ import { FlameIcon, MailIcon, LockIcon, UserIcon, ArrowRightIcon, DumbbellIcon, 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { registerUser } from "@/app/actions/auth";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -48,11 +49,31 @@ export default function RegisterPage() {
 
         setLoading(true);
 
-        // Simulação local — trocar por Supabase quando configurado
-        await new Promise((r) => setTimeout(r, 800));
+        try {
+            const res = await registerUser({
+                email,
+                fullName: name,
+                role: role as "trainer" | "student",
+                age: age ? parseInt(age) : undefined,
+                weight,
+                goal,
+                cref,
+                specialty
+            });
 
-        setLoading(false);
-        router.push(role === "trainer" ? "/trainer/dashboard" : "/student/dashboard");
+            if (res.success) {
+                setSuccess("Conta criada com sucesso! Redirecionando para login...");
+                setTimeout(() => {
+                    router.push("/auth/login");
+                }, 2000);
+            } else {
+                setError(res.error || "Algo deu errado durante o cadastro.");
+            }
+        } catch (err: any) {
+            setError("Erro técnico: " + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

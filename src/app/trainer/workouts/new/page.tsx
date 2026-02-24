@@ -17,25 +17,37 @@ import {
     ArrowRightIcon
 } from "lucide-react";
 import Link from "next/link";
-import { EXERCISES_DB, Exercise } from "@/lib/exercises-db";
+import { Exercise } from "@/lib/exercises-db";
+import { getExercisesAction } from "@/app/actions/exercises";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTrainerStore } from "@/lib/trainer-store";
 
 export default function WorkoutBuilder() {
-    const { students, addWorkoutToStudent, saveWorkoutModel } = useTrainerStore();
+    const { students, saveWorkoutModel } = useTrainerStore();
     const [workoutName, setWorkoutName] = useState("");
     const [exercises, setExercises] = useState<any[]>([]);
     const [showPicker, setShowPicker] = useState(false);
     const [showStudentPicker, setShowStudentPicker] = useState(false);
     const [pickerSearch, setPickerSearch] = useState("");
+    const [exercisesList, setExercisesList] = useState<Exercise[]>([]);
+    const [loadingExercises, setLoadingExercises] = useState(true);
     const [toast, setToast] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function load() {
+            setExercisesList(await getExercisesAction() as Exercise[]);
+            setLoadingExercises(false);
+        }
+        load();
+    }, []);
 
     const showToast = (msg: string) => {
         setToast(msg);
         setTimeout(() => setToast(null), 3000);
     };
 
-    const filteredPicker = EXERCISES_DB.filter(ex =>
+    const filteredPicker = exercisesList.filter(ex =>
         ex.name.toLowerCase().includes(pickerSearch.toLowerCase()) ||
         ex.muscle.toLowerCase().includes(pickerSearch.toLowerCase())
     );
@@ -56,7 +68,7 @@ export default function WorkoutBuilder() {
         setExercises(exercises.filter((_, i) => i !== idx));
     };
 
-    const handleSaveOnly = () => {
+    const handleSaveOnly = async () => {
         if (!workoutName.trim()) {
             showToast("Dê um nome ao treino!");
             return;
@@ -65,11 +77,19 @@ export default function WorkoutBuilder() {
             showToast("Adicione pelo menos um exercício!");
             return;
         }
-        saveWorkoutModel(workoutName, exercises);
-        showToast(`Modelo "${workoutName}" salvo com sucesso!`);
-        setTimeout(() => {
-            window.location.href = "/trainer/workouts";
-        }, 1500);
+        // Em um app real, pegaríamos o ID do professor logado. 
+        // Por enquanto usamos um placeholder ou o primeiro perfil 'trainer'.
+        const trainerId = "00000000-0000-0000-0000-000000000000"; // Mock trainer ID
+        const success = await saveWorkoutModel(trainerId, workoutName, exercises);
+
+        if (success) {
+            showToast(`Modelo "${workoutName}" salvo com sucesso!`);
+            setTimeout(() => {
+                window.location.href = "/trainer/workouts";
+            }, 1500);
+        } else {
+            showToast("Erro ao salvar no banco de dados.");
+        }
     };
 
     const handleOpenAssignModal = () => {
@@ -80,14 +100,19 @@ export default function WorkoutBuilder() {
         setShowStudentPicker(true);
     };
 
-    const assignToStudent = (studentId: number, studentName: string) => {
-        addWorkoutToStudent(studentId, workoutName);
-        saveWorkoutModel(workoutName, exercises);
-        showToast(`Treino "${workoutName}" atribuído a ${studentName}!`);
-        setShowStudentPicker(false);
-        setTimeout(() => {
-            window.location.href = "/trainer/dashboard";
-        }, 1500);
+    const assignToStudent = async (studentId: string, studentName: string) => {
+        // No futuro: Criar assignment na tabela student_assignments
+        const success = await saveWorkoutModel("00000000-0000-0000-0000-000000000000", workoutName, exercises);
+
+        if (success) {
+            showToast(`Treino "${workoutName}" atribuído a ${studentName}!`);
+            setShowStudentPicker(false);
+            setTimeout(() => {
+                window.location.href = "/trainer/dashboard";
+            }, 1500);
+        } else {
+            showToast("Erro ao atribuir treino.");
+        }
     };
 
     return (

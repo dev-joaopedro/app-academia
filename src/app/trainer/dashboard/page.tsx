@@ -14,15 +14,23 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTrainerStore, Student } from "@/lib/trainer-store";
+import { useEffect } from "react";
 
 export default function TrainerDashboard() {
     const {
         students,
+        loading,
+        fetchStudents,
         addStudent,
         updateStudent,
+        deleteStudent,
         removeWorkoutFromStudent,
         updateStudentWorkoutName
     } = useTrainerStore();
+
+    useEffect(() => {
+        fetchStudents();
+    }, [fetchStudents]);
 
     const [search, setSearch] = useState("");
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -42,24 +50,33 @@ export default function TrainerDashboard() {
         s.name.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleAddStudent = () => {
+    const handleAddStudent = async () => {
         if (!newStudentName.trim()) return;
-        addStudent({
-            name: newStudentName,
-            lastWorkout: "—",
-            status: "Ativo",
-            plan: "Personalizado",
-            email: newStudentEmail || "—",
-            phone: "—",
-            age: 0,
-            weight: "—",
-            goal: "A definir",
-            workouts: [],
+        const success = await addStudent({
+            fullName: newStudentName,
+            email: newStudentEmail || `${newStudentName.toLowerCase().replace(/ /g, '.')}@email.com`,
         });
-        setNewStudentName("");
-        setNewStudentEmail("");
-        setShowNewStudentModal(false);
-        showToast(`${newStudentName} adicionado com sucesso!`);
+
+        if (success) {
+            setNewStudentName("");
+            setNewStudentEmail("");
+            setShowNewStudentModal(false);
+            showToast(`${newStudentName} adicionado com sucesso!`);
+        } else {
+            showToast("Erro ao adicionar aluno.");
+        }
+    };
+
+    const handleDeleteStudent = async (id: string) => {
+        if (confirm("Deseja realmente excluir este aluno? Todos os dados serão perdidos.")) {
+            const success = await deleteStudent(id);
+            if (success) {
+                setSelectedStudent(null);
+                showToast("Aluno excluído com sucesso.");
+            } else {
+                showToast("Erro ao excluir aluno.");
+            }
+        }
     };
 
     const handleDeleteWorkout = (workoutIndex: number) => {
@@ -73,7 +90,7 @@ export default function TrainerDashboard() {
         showToast("Treino excluído com sucesso!");
     };
 
-    const handleSaveStudent = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSaveStudent = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!selectedStudent) return;
 
@@ -86,10 +103,14 @@ export default function TrainerDashboard() {
             goal: formData.get("goal") as string,
         };
 
-        updateStudent(selectedStudent.id, updatedData);
-        setSelectedStudent({ ...selectedStudent, ...updatedData });
-        setIsEditingStudent(false);
-        showToast("Dados atualizados com sucesso!");
+        const success = await updateStudent(selectedStudent.id, updatedData);
+        if (success) {
+            setSelectedStudent({ ...selectedStudent, ...updatedData });
+            setIsEditingStudent(false);
+            showToast("Dados atualizados com sucesso!");
+        } else {
+            showToast("Erro ao atualizar dados.");
+        }
     };
 
     const handleRenameWorkout = () => {
@@ -162,7 +183,13 @@ export default function TrainerDashboard() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    {filtered.map(student => (
+                    {loading ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="h-20 w-full bg-muted/20 animate-pulse rounded-2xl border border-border/20" />
+                            ))}
+                        </div>
+                    ) : filtered.map(student => (
                         <button
                             key={student.id}
                             onClick={() => setSelectedStudent(student)}
@@ -335,6 +362,13 @@ export default function TrainerDashboard() {
                                 </Button>
                             </Link>
                         </div>
+                        <Button
+                            variant="link"
+                            className="w-full text-destructive text-xs font-bold uppercase tracking-widest opacity-50 hover:opacity-100"
+                            onClick={() => handleDeleteStudent(selectedStudent.id)}
+                        >
+                            Excluir Aluno Completo
+                        </Button>
                     </div>
                 </div>
             )}

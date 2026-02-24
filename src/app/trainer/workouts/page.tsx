@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,24 +16,47 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTrainerStore } from "@/lib/trainer-store";
+import { getWorkoutModelsAction as getModels, deleteWorkoutModelAction } from "@/app/actions/trainer";
 
 export default function WorkoutModels() {
-    const { workoutModels, deleteWorkoutModel, students, addWorkoutToStudent } = useTrainerStore();
+    const { students } = useTrainerStore();
     const [search, setSearch] = useState("");
     const [assigningWorkout, setAssigningWorkout] = useState<string | null>(null);
+    const [models, setModels] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filtered = workoutModels.filter(m =>
+    useEffect(() => {
+        async function load() {
+            setLoading(true);
+            const data = await getModels("00000000-0000-0000-0000-000000000000");
+            setModels(data as any[]);
+            setLoading(false);
+        }
+        load();
+    }, []);
+
+    const filtered = models.filter(m =>
         m.name.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleAssign = (studentId: number, studentName: string) => {
+    const handleAssign = (studentId: string, studentName: string) => {
         if (!assigningWorkout) return;
-        const model = workoutModels.find(m => m.id === assigningWorkout);
+        const model = models.find(m => m.id === assigningWorkout);
         if (model) {
-            addWorkoutToStudent(studentId, model.name);
             alert(`Treino "${model.name}" atribuído a ${studentName}!`);
         }
         setAssigningWorkout(null);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (confirm("Excluir este modelo?")) {
+            const success = await deleteWorkoutModelAction(id);
+            if (success) {
+                setModels(prev => prev.filter(m => m.id !== id));
+            } else {
+                alert("Erro ao excluir modelo.");
+            }
+        }
     };
 
     return (
@@ -66,7 +89,11 @@ export default function WorkoutModels() {
 
             {/* Models List */}
             <div className="px-6 space-y-3">
-                {filtered.map(model => (
+                {loading ? (
+                    [1, 2, 3].map(i => (
+                        <Card key={i} className="p-4 rounded-3xl h-32 bg-muted/20 animate-pulse border-border/20" />
+                    ))
+                ) : filtered.map(model => (
                     <Card key={model.id} className="p-4 rounded-3xl border-border/50 bg-card/40 backdrop-blur-sm">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
@@ -75,7 +102,7 @@ export default function WorkoutModels() {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-base">{model.name}</h4>
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground">{model.exercises.length} Exercícios</p>
+                                    <p className="text-[10px] font-black uppercase text-muted-foreground">{model.exercises_count || 0} Exercícios</p>
                                 </div>
                             </div>
                             <div className="flex gap-2">
@@ -83,9 +110,7 @@ export default function WorkoutModels() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-destructive/50 hover:text-destructive rounded-full"
-                                    onClick={() => {
-                                        if (confirm("Excluir este modelo?")) deleteWorkoutModel(model.id);
-                                    }}
+                                    onClick={() => handleDelete(model.id)}
                                 >
                                     <Trash2Icon className="w-4 h-4" />
                                 </Button>
@@ -112,7 +137,7 @@ export default function WorkoutModels() {
                     </Card>
                 ))}
 
-                {filtered.length === 0 && (
+                {!loading && filtered.length === 0 && (
                     <div className="text-center py-20 border-2 border-dashed border-border/50 rounded-[2.5rem]">
                         <p className="text-sm text-muted-foreground font-bold italic">Nenhum modelo salvo.</p>
                         <p className="text-[10px] text-muted-foreground uppercase font-black mt-2">Crie um novo treino para salvá-lo como modelo.</p>
