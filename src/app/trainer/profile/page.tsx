@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,20 +9,32 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useThemeStore } from "@/lib/theme-store";
+import { getCurrentUserAction, logoutAction } from "@/app/actions/auth";
 
 export default function TrainerProfilePage() {
     const router = useRouter();
     const { theme, toggleTheme } = useThemeStore();
     const [toast, setToast] = useState<string | null>(null);
     const [showModal, setShowModal] = useState<"settings" | "notifications" | "privacy" | null>(null);
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        async function load() {
+            const profile = await getCurrentUserAction();
+            setUser(profile);
+        }
+        load();
+    }, []);
 
     const showToast = (msg: string) => {
         setToast(msg);
         setTimeout(() => setToast(null), 3000);
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await logoutAction();
         router.push("/auth/login");
+        router.refresh();
     };
 
     return (
@@ -32,11 +44,13 @@ export default function TrainerProfilePage() {
             {/* Avatar Card */}
             <Card className="p-6 rounded-[2.5rem] bg-muted/20 border-border/50 flex flex-col items-center gap-4">
                 <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-4xl font-bold text-primary-foreground">
-                    P
+                    {user?.full_name ? user.full_name[0].toUpperCase() : "P"}
                 </div>
                 <div className="text-center">
-                    <h2 className="text-xl font-bold">Prof. João Pedro</h2>
-                    <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">Personal Trainer</p>
+                    <h2 className="text-xl font-bold">{user?.full_name || "Carregando..."}</h2>
+                    <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">
+                        {user?.role === "trainer" ? "Personal Trainer" : "Professor"}
+                    </p>
                 </div>
                 <Button
                     variant="outline"

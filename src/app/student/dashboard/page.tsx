@@ -13,10 +13,21 @@ import {
 import Link from "next/link";
 import { useWorkoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getCurrentUserAction, logoutAction } from "@/app/actions/auth";
 
 export default function StudentDashboard() {
     const router = useRouter();
     const { startWorkout, isActive } = useWorkoutStore();
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        async function loadUser() {
+            const profile = await getCurrentUserAction();
+            setUser(profile);
+        }
+        loadUser();
+    }, []);
 
     const handleStart = () => {
         startWorkout("Treino A - Peitorais", [
@@ -31,7 +42,9 @@ export default function StudentDashboard() {
         <div className="flex flex-col gap-6 px-6 py-6 pb-24">
             {/* Welcome Section */}
             <section className="space-y-1">
-                <h1 className="text-3xl font-black tracking-tighter">Olá, João! ⚡</h1>
+                <h1 className="text-3xl font-black tracking-tighter">
+                    Olá, {user?.full_name?.split(' ')[0] || "..."}! ⚡
+                </h1>
                 <p className="text-muted-foreground font-medium">Você já treinou 3 dias esta semana.</p>
             </section>
 

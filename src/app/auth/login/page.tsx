@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { FlameIcon, ChromeIcon, AppleIcon, MailIcon, LockIcon, ArrowRightIcon, AlertCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getProfileByEmail } from "@/app/actions/auth";
+import { loginAction } from "@/app/actions/auth";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -32,17 +32,17 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const profile = await getProfileByEmail(email);
+            const result = await loginAction(email);
 
-            if (profile) {
-                // Em produção real, validaríamos a senha aqui
-                if (profile.role === "trainer") {
+            if (result.success) {
+                if (result.role === "trainer") {
                     router.push("/trainer/dashboard");
                 } else {
                     router.push("/student/dashboard");
                 }
+                router.refresh(); // Garante que o middleware veja o novo cookie
             } else {
-                setError("Usuário não encontrado. Verifique seu e-mail.");
+                setError(result.error || "Usuário não encontrado.");
             }
         } catch (err) {
             setError("Erro ao conectar com o banco de dados.");

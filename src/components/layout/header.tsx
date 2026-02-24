@@ -4,11 +4,25 @@ import { FlameIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { getCurrentUserAction } from "@/app/actions/auth";
+import { useEffect, useState } from "react";
+
 export function Header() {
     const pathname = usePathname();
     const isAuthPage = pathname.startsWith("/auth");
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        async function load() {
+            const profile = await getCurrentUserAction();
+            setUser(profile);
+        }
+        if (!isAuthPage) load();
+    }, [isAuthPage]);
 
     if (isAuthPage) return null;
+
+    const profilePath = user?.role === "trainer" ? "/trainer/profile" : "/student/profile";
 
     return (
         <header className="sticky top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-lg border-b border-border/50 px-6 flex items-center justify-between z-40">
@@ -19,7 +33,7 @@ export function Header() {
                 <span className="font-bold tracking-tight text-lg">AcaSaaS</span>
             </Link>
 
-            <Link href="/student/profile" className="w-10 h-10 rounded-full bg-muted border border-border/50 flex items-center justify-center overflow-hidden">
+            <Link href={profilePath} className="w-10 h-10 rounded-full bg-muted border border-border/50 flex items-center justify-center overflow-hidden">
                 <UserIcon className="w-6 h-6 text-muted-foreground" />
             </Link>
         </header>

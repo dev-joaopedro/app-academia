@@ -7,7 +7,7 @@ import { FlameIcon, MailIcon, LockIcon, UserIcon, ArrowRightIcon, DumbbellIcon, 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { registerUser } from "@/app/actions/auth";
+import { registerUser, loginAction } from "@/app/actions/auth";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -62,10 +62,17 @@ export default function RegisterPage() {
             });
 
             if (res.success) {
-                setSuccess("Conta criada com sucesso! Redirecionando para login...");
-                setTimeout(() => {
+                setSuccess("Conta criada com sucesso! Entrando...");
+                // Login automático
+                const loginRes = await loginAction(email);
+                if (loginRes.success) {
+                    setTimeout(() => {
+                        router.push(role === "trainer" ? "/trainer/dashboard" : "/student/dashboard");
+                        router.refresh();
+                    }, 1500);
+                } else {
                     router.push("/auth/login");
-                }, 2000);
+                }
             } else {
                 setError(res.error || "Algo deu errado durante o cadastro.");
             }

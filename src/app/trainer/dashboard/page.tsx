@@ -153,7 +153,11 @@ export default function TrainerDashboard() {
                     </div>
                     <div className="space-y-1">
                         <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">AI Insight</h3>
-                        <p className="text-sm font-bold leading-tight">João Silva baixou o volume em 20% esta semana. Risco de overtraining detectado.</p>
+                        <p className="text-sm font-bold leading-tight">
+                            {students.length > 0
+                                ? `${students[0].name} baixou o volume em 20% esta semana. Risco de overtraining detectado.`
+                                : "Acompanhe o progresso dos seus alunos aqui em tempo real."}
+                        </p>
                     </div>
                 </div>
             </Card>
