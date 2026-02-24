@@ -86,9 +86,13 @@ export async function saveWorkoutModelAction(trainerId: string, name: string, ex
 
         revalidatePath("/trainer/workouts");
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao salvar modelo de treino:", error);
-        return { success: false };
+        // Retorna mais detalhes do erro se possível (cuidado com segurança em produção)
+        return {
+            success: false,
+            error: error.message || "Erro desconhecido ao salvar no banco."
+        };
     }
 }
 

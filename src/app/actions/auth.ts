@@ -15,21 +15,30 @@ export async function registerUser(formData: {
     // Professor
     cref?: string;
     specialty?: string;
+    password?: string;
 }) {
     try {
-        const { email, fullName, role, age, weight, goal, cref, specialty } = formData;
+        const { email, fullName, role, age, weight, goal, cref, specialty, password } = formData;
+
+        // Migração Automática: Garantir que a coluna de senha existe
+        try {
+            await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password_hash TEXT`;
+        } catch (e) {
+            console.log("Coluna password_hash já existe ou erro na alteração");
+        }
 
         // Insere no banco Neon (Postgres)
         await sql`
             INSERT INTO profiles (
-                email, full_name, role, age, weight, goal, cref, specialty
+                email, full_name, role, age, weight, goal, cref, specialty, password_hash
             ) VALUES (
                 ${email}, ${fullName}, ${role}, ${age || null}, ${weight || null}, 
-                ${goal || null}, ${cref || null}, ${specialty || null}
+                ${goal || null}, ${cref || null}, ${specialty || null}, ${password || null}
             )
             ON CONFLICT (email) DO UPDATE SET
                 full_name = EXCLUDED.full_name,
                 role = EXCLUDED.role,
+                password_hash = COALESCE(EXCLUDED.password_hash, profiles.password_hash),
                 updated_at = CURRENT_TIMESTAMP
         `;
 
@@ -52,10 +61,15 @@ export async function getProfileByEmail(email: string) {
     }
 }
 
-export async function loginAction(email: string) {
+export async function loginAction(email: string, password?: string) {
     try {
         const profile = await getProfileByEmail(email);
         if (!profile) return { success: false, error: "Usuário não encontrado." };
+
+        // Validação de senha simples (melhorar futuramente com hash)
+        if (password && profile.password_hash !== password) {
+            return { success: false, error: "Senha incorreta." };
+        }
 
         const cookieStore = await cookies();
         cookieStore.set("app-user-role", profile.role, {

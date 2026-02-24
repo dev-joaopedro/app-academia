@@ -54,6 +54,7 @@ export default function RegisterPage() {
                 email,
                 fullName: name,
                 role: role as "trainer" | "student",
+                password: password, // Adicionado
                 age: age ? parseInt(age) : undefined,
                 weight,
                 goal,

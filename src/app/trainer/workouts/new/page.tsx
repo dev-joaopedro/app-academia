@@ -22,6 +22,7 @@ import { getExercisesAction } from "@/app/actions/exercises";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTrainerStore } from "@/lib/trainer-store";
+import { getCurrentUserAction } from "@/app/actions/auth";
 
 export default function WorkoutBuilder() {
     const { students, saveWorkoutModel } = useTrainerStore();
@@ -36,7 +37,11 @@ export default function WorkoutBuilder() {
 
     useEffect(() => {
         async function load() {
-            setExercisesList(await getExercisesAction() as Exercise[]);
+            const [exList, profile] = await Promise.all([
+                getExercisesAction(),
+                getCurrentUserAction()
+            ]);
+            setExercisesList(exList as Exercise[]);
             setLoadingExercises(false);
         }
         load();
@@ -54,7 +59,8 @@ export default function WorkoutBuilder() {
 
     const addExercise = (ex: Exercise) => {
         setExercises([...exercises, {
-            id: ex.id + Date.now(),
+            localId: Date.now(), // ID único apenas para o React (key)
+            id: ex.id,           // UUID REAL para o banco de dados
             name: ex.name,
             sets: 3,
             reps: "12",
@@ -77,12 +83,16 @@ export default function WorkoutBuilder() {
             showToast("Adicione pelo menos um exercício!");
             return;
         }
-        // Em um app real, pegaríamos o ID do professor logado. 
-        // Por enquanto usamos um placeholder ou o primeiro perfil 'trainer'.
-        const trainerId = "00000000-0000-0000-0000-000000000000"; // Mock trainer ID
-        const success = await saveWorkoutModel(trainerId, workoutName, exercises);
 
-        if (success) {
+        const profile = await getCurrentUserAction();
+        if (!profile || profile.role !== 'trainer') {
+            showToast("Erro: Apenas professores podem salvar treinos.");
+            return;
+        }
+
+        const res = await saveWorkoutModel(profile.id, workoutName, exercises);
+
+        if (res) {
             showToast(`Modelo "${workoutName}" salvo com sucesso!`);
             setTimeout(() => {
                 window.location.href = "/trainer/workouts";
@@ -101,8 +111,13 @@ export default function WorkoutBuilder() {
     };
 
     const assignToStudent = async (studentId: string, studentName: string) => {
-        // No futuro: Criar assignment na tabela student_assignments
-        const success = await saveWorkoutModel("00000000-0000-0000-0000-000000000000", workoutName, exercises);
+        const profile = await getCurrentUserAction();
+        if (!profile) {
+            showToast("Sessão expirada. Faça login novamente.");
+            return;
+        }
+
+        const success = await saveWorkoutModel(profile.id, workoutName, exercises);
 
         if (success) {
             showToast(`Treino "${workoutName}" atribuído a ${studentName}!`);
@@ -167,7 +182,7 @@ export default function WorkoutBuilder() {
                         </div>
                     )}
                     {exercises.map((ex, index) => (
-                        <Card key={ex.id} className="p-4 rounded-3xl border-border/50 bg-card/40 backdrop-blur-sm relative overflow-hidden">
+                        <Card key={ex.localId} className="p-4 rounded-3xl border-border/50 bg-card/40 backdrop-blur-sm relative overflow-hidden">
                             <div className="flex items-center gap-4 mb-4">
                                 <GripVerticalIcon className="w-5 h-5 text-muted-foreground/30 cursor-grab" />
                                 <div className="flex-1">

@@ -32,7 +32,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const result = await loginAction(email);
+            const result = await loginAction(email, password);
 
             if (result.success) {
                 if (result.role === "trainer") {

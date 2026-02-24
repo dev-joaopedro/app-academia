@@ -15,28 +15,46 @@ import { useWorkoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCurrentUserAction, logoutAction } from "@/app/actions/auth";
+import { getStudentWorkoutsAction } from "@/app/actions/workouts";
 
 export default function StudentDashboard() {
     const router = useRouter();
     const { startWorkout, isActive } = useWorkoutStore();
     const [user, setUser] = useState<any>(null);
+    const [workouts, setWorkouts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function loadUser() {
-            const profile = await getCurrentUserAction();
+        async function loadData() {
+            setLoading(true);
+            const [profile, assignedWorkouts] = await Promise.all([
+                getCurrentUserAction(),
+                getStudentWorkoutsAction()
+            ]);
             setUser(profile);
+            setWorkouts(assignedWorkouts);
+            setLoading(false);
         }
-        loadUser();
+        loadData();
     }, []);
 
-    const handleStart = () => {
-        startWorkout("Treino A - Peitorais", [
-            { id: 1, name: "Supino Reto com Barra", target: "4x12" },
-            { id: 2, name: "Supino Inclinado", target: "3x15" },
-            { id: 3, name: "Crucifixo", target: "3x12" },
-        ]);
+    const handleStart = (workout: any) => {
+        const formattedExercises = workout.exercises.map((ex: any, idx: number) => ({
+            id: ex.id || idx,
+            name: ex.name,
+            target: `${ex.sets}x${ex.reps}`,
+            sets: Array.from({ length: ex.sets }, () => ({
+                weight: "",
+                reps: ex.reps,
+                completed: false
+            }))
+        }));
+
+        startWorkout(workout.name, formattedExercises);
         router.push("/student/workout/active");
     };
+
+    const currentWorkout = workouts[0]; // Pegamos o primeiro como destaque por enquanto
 
     return (
         <div className="flex flex-col gap-6 px-6 py-6 pb-24">
@@ -50,80 +68,84 @@ export default function StudentDashboard() {
 
             {/* Main Action: Today's Workout */}
             <section>
-                <Card className="relative overflow-hidden border-2 border-primary/20 bg-primary/5 rounded-[2.5rem] p-8 space-y-6">
-                    <div className="relative z-10 flex flex-col gap-4">
-                        <Badge className="w-fit bg-primary text-primary-foreground font-black px-4 py-1 rounded-full uppercase text-[10px] tracking-widest">
-                            Foco de Hoje
-                        </Badge>
-                        <div className="space-y-1">
-                            <h2 className="text-3xl font-black tracking-tight leading-none uppercase">Treino {isActive ? "em Andamento" : "A"}</h2>
-                            <p className="text-muted-foreground font-bold">Peitorais & Tríceps (Hipertrofia)</p>
-                        </div>
-
-                        <div className="flex items-center gap-6 mt-4">
-                            <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground font-black uppercase">Exercícios</span>
-                                <span className="text-xl font-bold">8</span>
+                {loading ? (
+                    <Card className="h-64 animate-pulse bg-muted/20 rounded-[2.5rem]" />
+                ) : currentWorkout ? (
+                    <Card className="relative overflow-hidden border-2 border-primary/20 bg-primary/5 rounded-[2.5rem] p-8 space-y-6">
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <Badge className="w-fit bg-primary text-primary-foreground font-black px-4 py-1 rounded-full uppercase text-[10px] tracking-widest">
+                                Sugestão Atual
+                            </Badge>
+                            <div className="space-y-1">
+                                <h2 className="text-3xl font-black tracking-tight leading-none uppercase">
+                                    {isActive ? "Sessão Ativa" : currentWorkout.name}
+                                </h2>
+                                <p className="text-muted-foreground font-bold">{currentWorkout.description || "Treino atribuído pelo seu professor"}</p>
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground font-black uppercase">Tempo Est.</span>
-                                <span className="text-xl font-bold">55 min</span>
+
+                            <div className="flex items-center gap-6 mt-4">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground font-black uppercase">Exercícios</span>
+                                    <span className="text-xl font-bold">{currentWorkout.exercises.length}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground font-black uppercase">Professor</span>
+                                    <span className="text-xl font-bold">{currentWorkout.trainer_name.split(' ')[0]}</span>
+                                </div>
                             </div>
+
+                            <Button
+                                onClick={isActive ? () => router.push("/student/workout/active") : () => handleStart(currentWorkout)}
+                                className="h-16 rounded-2xl text-lg font-black shadow-lg shadow-primary/20 mt-4 group"
+                            >
+                                {isActive ? "VOLTAR AO TREINO" : "INICIAR TREINO"}
+                                <PlayIcon className="ml-2 w-5 h-5 fill-current group-hover:scale-110 transition-transform" />
+                            </Button>
                         </div>
-
-                        <Button onClick={isActive ? () => router.push("/student/workout/active") : handleStart} className="h-16 rounded-2xl text-lg font-black shadow-lg shadow-primary/20 mt-4 group">
-                            {isActive ? "VOLTAR AO TREINO" : "INICIAR TREINO"}
-                            <PlayIcon className="ml-2 w-5 h-5 fill-current group-hover:scale-110 transition-transform" />
-                        </Button>
-                    </div>
-
-                    {/* Background Decorative Icon */}
-                    <FlameIcon className="absolute -right-8 -bottom-8 w-48 h-48 text-primary/10 -rotate-12" />
-                </Card>
+                        <FlameIcon className="absolute -right-8 -bottom-8 w-48 h-48 text-primary/10 -rotate-12" />
+                    </Card>
+                ) : (
+                    <Card className="p-12 text-center rounded-[2.5rem] bg-muted/10 border-dashed border-2 border-border/50">
+                        <p className="text-muted-foreground font-medium">Nenhum treino atribuído ainda. <br />Aguarde o seu professor.</p>
+                    </Card>
+                )}
             </section>
 
-            {/* AI Smart Progression Preview */}
-            <section>
-                <Card className="p-6 rounded-[2rem] border-2 border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background relative overflow-hidden group">
-                    <div className="relative z-10 flex items-center gap-4">
-                        <div className="bg-primary p-3 rounded-2xl shadow-lg shadow-primary/30 animate-pulse">
-                            <FlameIcon className="w-5 h-5 text-primary-foreground" />
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-primary leading-none mb-1">AI Copilot</h3>
-                            <p className="text-sm font-bold leading-tight">Sugestão de Carga: Aumente 2kg no Supino hoje. Você está estagnado há 2 semanas.</p>
-                        </div>
-                    </div>
-                </Card>
-            </section>
-
-            {/* Quick Stats Grid */}
+            {/* Quick Stats Grid - Mantemos a estrutura mas removemos os dados fixos "mágicos" */}
             <div className="grid grid-cols-2 gap-4">
                 <StatCard
                     icon={<TrendingUpIcon className="w-5 h-5" />}
-                    label="Volume Semanal"
-                    value="45k kg"
-                    trend="+12%"
+                    label="Volume"
+                    value="--"
+                    trend="Em breve"
                 />
                 <StatCard
                     icon={<TrophyIcon className="w-5 h-5" />}
-                    label="Série de Dias"
-                    value="5 dias"
-                    trend="Novo Record!"
+                    label="Sequência"
+                    value="--"
+                    trend="Em breve"
                 />
             </div>
 
-            <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold tracking-tight text-white">Histórico Recente</h3>
-                    <Link href="/student/history" className="text-xs font-bold text-primary uppercase tracking-widest">Ver Todos</Link>
-                </div>
+            {workouts.length > 1 && (
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold tracking-tight text-white">Outros Treinos</h3>
+                    </div>
 
-                <div className="space-y-3">
-                    <HistoryItem date="22 Fev" name="Treino C - Pernas" status="Concluído" />
-                    <HistoryItem date="20 Fev" name="Treino B - Costas" status="Concluído" />
-                </div>
-            </section>
+                    <div className="space-y-3">
+                        {workouts.slice(1).map((w) => (
+                            <div key={w.id} className="flex items-center justify-between p-4 bg-muted/20 border border-border/50 rounded-2xl">
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-sm tracking-tight">{w.name}</h4>
+                                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{w.trainer_name}</span>
+                                </div>
+                                <Button size="sm" onClick={() => handleStart(w)} className="rounded-xl h-8 px-4 font-bold">Iniciar</Button>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

@@ -2,8 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface ExerciseLog {
-    id: number;
+    id: string | number;
     name: string;
+    target?: string;
     sets: { weight: string; reps: string; completed: boolean }[];
 }
 
@@ -18,7 +19,7 @@ interface WorkoutStore {
     startWorkout: (name: string, exercises: any[]) => void;
     pauseWorkout: () => void;
     finishWorkout: () => void;
-    updateSet: (exerciseId: number, setIndex: number, data: any) => void;
+    updateSet: (exerciseId: string | number, setIndex: number, data: any) => void;
     setResting: (status: boolean) => void;
     tickRest: () => void;
     resetRest: (seconds: number) => void;
