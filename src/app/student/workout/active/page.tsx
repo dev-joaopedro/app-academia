@@ -18,6 +18,8 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useWorkoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import { finishWorkoutAction } from "@/app/actions/student";
+import { getCurrentUserAction } from "@/app/actions/auth";
 
 // Instruções por exercício
 const EXERCISE_INSTRUCTIONS: Record<string, { description: string; tips: string[] }> = {
@@ -90,6 +92,7 @@ export default function ActiveWorkout() {
     const [workoutSeconds, setWorkoutSeconds] = useState(0);
     const [instructionsFor, setInstructionsFor] = useState<string | null>(null);
     const [showRestOverlay, setShowRestOverlay] = useState(false);
+    const [isFinishing, setIsFinishing] = useState(false);
 
     // Redireciona se não há treino ativo
     useEffect(() => {
@@ -127,6 +130,23 @@ export default function ActiveWorkout() {
     const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
     const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0;
 
+    const handleFinish = async () => {
+        if (isFinishing) return;
+        setIsFinishing(true);
+
+        try {
+            const user = await getCurrentUserAction();
+            if (user && currentWorkoutName) {
+                await finishWorkoutAction(user.id, currentWorkoutName, workoutSeconds, exercises);
+            }
+        } catch (error) {
+            console.error("Failed to save workout", error);
+        }
+
+        finishWorkout();
+        router.push("/student/dashboard");
+    };
+
     if (!isActive) return null;
 
     const currentInstructions = instructionsFor ? getInstructions(instructionsFor) : null;
@@ -148,10 +168,11 @@ export default function ActiveWorkout() {
                     </div>
                     <Button
                         variant="ghost"
-                        onClick={() => { finishWorkout(); router.push("/student/dashboard"); }}
+                        onClick={handleFinish}
+                        disabled={isFinishing}
                         className="text-destructive font-bold text-xs"
                     >
-                        SAIR
+                        {isFinishing ? "SALVANDO..." : "SAIR"}
                     </Button>
                 </div>
 
@@ -342,10 +363,11 @@ export default function ActiveWorkout() {
                     </div>
                 </Card>
                 <Button
-                    onClick={() => { finishWorkout(); router.push("/student/dashboard"); }}
+                    onClick={handleFinish}
+                    disabled={isFinishing}
                     className="h-16 px-6 rounded-2xl bg-foreground text-background font-black uppercase text-xs tracking-widest shadow-2xl"
                 >
-                    Finalizar
+                    {isFinishing ? "Salvando..." : "Finalizar"}
                 </Button>
             </div>
 
