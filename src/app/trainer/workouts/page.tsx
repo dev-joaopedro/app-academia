@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTrainerStore } from "@/lib/trainer-store";
-import { getWorkoutModelsAction as getModels, deleteWorkoutModelAction } from "@/app/actions/trainer";
+import { getWorkoutModelsAction as getModels, deleteWorkoutModelAction, assignWorkoutToStudentAction } from "@/app/actions/trainer";
 
 export default function WorkoutModels() {
     const { students } = useTrainerStore();
@@ -39,11 +39,21 @@ export default function WorkoutModels() {
         m.name.toLowerCase().includes(search.toLowerCase())
     );
 
-    const handleAssign = (studentId: string, studentName: string) => {
+    const handleAssign = async (studentId: string, studentName: string) => {
         if (!assigningWorkout) return;
         const model = models.find(m => m.id === assigningWorkout);
         if (model) {
-            alert(`Treino "${model.name}" atribuído a ${studentName}!`);
+            const result = await assignWorkoutToStudentAction(
+                model.trainer_id || "00000000-0000-0000-0000-000000000000",
+                studentId,
+                model.id
+            );
+
+            if (result.success) {
+                alert(`Treino "${model.name}" atribuído a ${studentName} com sucesso!`);
+            } else {
+                alert(`Falha ao atribuir treino: ${result.error || "Erro desconhecido."}`);
+            }
         }
         setAssigningWorkout(null);
     };
