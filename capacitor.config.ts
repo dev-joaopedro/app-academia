@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
     webDir: 'public',
     server: {
         // Substitua pela URL onde o seu app está publicado (ex: Vercel)
-        url: 'https://seu-app-publicado.vercel.app',
+        url: 'https://acad-saas.netlify.app',
         cleartext: true
     }
 };

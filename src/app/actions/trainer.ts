@@ -101,7 +101,14 @@ export async function saveWorkoutModelAction(trainerId: string, name: string, ex
 export async function getStudentsAction() {
     try {
         const students = await sql`
-            SELECT id, email, full_name as name, age, weight, goal, created_at
+            SELECT 
+                id, email, full_name as name, age, weight, goal, created_at,
+                (
+                    SELECT COALESCE(json_agg(wm.name), '[]'::json)
+                    FROM student_assignments sa
+                    JOIN workout_models wm ON sa.workout_id = wm.id
+                    WHERE sa.student_id = profiles.id
+                ) as workouts
             FROM profiles 
             WHERE role = 'student'
             ORDER BY created_at DESC
@@ -155,5 +162,48 @@ export async function deleteWorkoutModelAction(id: string) {
     } catch (error) {
         console.error("Erro ao deletar modelo de treino:", error);
         return { success: false };
+    }
+}
+
+export async function assignWorkoutToStudentAction(trainerId: string, studentId: string, workoutId: string) {
+    try {
+        // Verifica se já não está atribuído para evitar duplicidade
+        const existing = await sql`
+            SELECT id FROM student_assignments 
+            WHERE student_id = ${studentId} AND workout_id = ${workoutId}
+        `;
+
+        if (existing.length > 0) {
+            return { success: false, error: "Este treino já está atribuído a este aluno." };
+        }
+
+        await sql`
+            INSERT INTO student_assignments (trainer_id, student_id, workout_id)
+            VALUES (${trainerId}, ${studentId}, ${workoutId})
+        `;
+
+        revalidatePath("/trainer/workouts");
+        revalidatePath("/trainer/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao atribuir treino ao aluno:", error);
+        return { success: false, error: "Erro interno ao atribuir treino." };
+    }
+}
+
+export async function unassignWorkoutFromStudentAction(studentId: string, workoutName: string) {
+    try {
+        await sql`
+            DELETE FROM student_assignments sa
+            USING workout_models wm
+            WHERE sa.workout_id = wm.id 
+            AND sa.student_id = ${studentId} 
+            AND wm.name = ${workoutName}
+        `;
+        revalidatePath("/trainer/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao desatribuir treino do aluno:", error);
+        return { success: false, error: "Erro interno ao remover treino do aluno." };
     }
 }

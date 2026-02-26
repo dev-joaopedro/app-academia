@@ -4,7 +4,8 @@ import {
     updateStudentAction,
     deleteStudentAction,
     getStudentsAction,
-    saveWorkoutModelAction
+    saveWorkoutModelAction,
+    unassignWorkoutFromStudentAction
 } from "@/app/actions/trainer";
 
 export interface Student {
@@ -66,7 +67,7 @@ export const useTrainerStore = create<TrainerStore>((set, get) => ({
             plan: "Personalizado",
             lastWorkout: "—",
             phone: s.phone || "—",
-            workouts: []
+            workouts: s.workouts || []
         }));
         set({ students: mapped, loading: false });
     },
@@ -103,13 +104,24 @@ export const useTrainerStore = create<TrainerStore>((set, get) => ({
         return res.success;
     },
 
-    removeWorkoutFromStudent: (studentId, workoutIndex) => set((state) => ({
-        students: state.students.map(s =>
-            s.id === studentId
-                ? { ...s, workouts: s.workouts.filter((_, i) => i !== workoutIndex) }
-                : s
-        )
-    })),
+    removeWorkoutFromStudent: async (studentId, workoutIndex) => {
+        const student = get().students.find(s => s.id === studentId);
+        if (student && student.workouts[workoutIndex]) {
+            const workoutName = student.workouts[workoutIndex];
+
+            // Optimistic update
+            set((state) => ({
+                students: state.students.map(s =>
+                    s.id === studentId
+                        ? { ...s, workouts: s.workouts.filter((_, i) => i !== workoutIndex) }
+                        : s
+                )
+            }));
+
+            // Persist to DB
+            await unassignWorkoutFromStudentAction(studentId, workoutName);
+        }
+    },
 
     updateStudentWorkoutName: (studentId, workoutIndex, newName) => set((state) => ({
         students: state.students.map(s =>

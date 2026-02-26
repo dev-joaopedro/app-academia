@@ -12,12 +12,15 @@ import {
     InfoIcon,
     XIcon,
     ClockIcon,
-    TimerIcon
+    TimerIcon,
+    TrophyIcon
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useWorkoutStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import { finishWorkoutAction } from "@/app/actions/student";
+import { getCurrentUserAction } from "@/app/actions/auth";
 
 // Instruções por exercício
 const EXERCISE_INSTRUCTIONS: Record<string, { description: string; tips: string[] }> = {
@@ -90,6 +93,8 @@ export default function ActiveWorkout() {
     const [workoutSeconds, setWorkoutSeconds] = useState(0);
     const [instructionsFor, setInstructionsFor] = useState<string | null>(null);
     const [showRestOverlay, setShowRestOverlay] = useState(false);
+    const [isFinishing, setIsFinishing] = useState(false);
+    const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
 
     // Redireciona se não há treino ativo
     useEffect(() => {
@@ -127,6 +132,34 @@ export default function ActiveWorkout() {
     const totalSets = exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
     const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0;
 
+    // Conclusão automática
+    useEffect(() => {
+        if (progress === 100 && totalSets > 0 && !showCompletionOverlay && !isFinishing) {
+            // Pequeno delay para a animação do último check terminar
+            const timeout = setTimeout(() => {
+                setShowCompletionOverlay(true);
+            }, 600);
+            return () => clearTimeout(timeout);
+        }
+    }, [progress, totalSets, showCompletionOverlay, isFinishing]);
+
+    const handleFinish = async () => {
+        if (isFinishing) return;
+        setIsFinishing(true);
+
+        try {
+            const user = await getCurrentUserAction();
+            if (user && currentWorkoutName) {
+                await finishWorkoutAction(user.id, currentWorkoutName, workoutSeconds, exercises);
+            }
+        } catch (error) {
+            console.error("Failed to save workout", error);
+        }
+
+        finishWorkout();
+        router.push("/student/dashboard");
+    };
+
     if (!isActive) return null;
 
     const currentInstructions = instructionsFor ? getInstructions(instructionsFor) : null;
@@ -148,10 +181,11 @@ export default function ActiveWorkout() {
                     </div>
                     <Button
                         variant="ghost"
-                        onClick={() => { finishWorkout(); router.push("/student/dashboard"); }}
+                        onClick={handleFinish}
+                        disabled={isFinishing}
                         className="text-destructive font-bold text-xs"
                     >
-                        SAIR
+                        {isFinishing ? "SALVANDO..." : "SAIR"}
                     </Button>
                 </div>
 
@@ -300,6 +334,42 @@ export default function ActiveWorkout() {
                 </div>
             )}
 
+            {/* Overlay de Treino Concluído */}
+            {showCompletionOverlay && (
+                <div className="fixed inset-0 bg-primary/95 backdrop-blur-md z-[120] flex flex-col items-center justify-center gap-8 px-6 text-center animate-in fade-in zoom-in duration-500">
+                    <div className="w-32 h-32 bg-background/20 rounded-full flex items-center justify-center animate-bounce shadow-2xl shadow-black/20">
+                        <TrophyIcon className="w-16 h-16 text-primary-foreground" />
+                    </div>
+                    <div className="space-y-4 text-primary-foreground max-w-sm">
+                        <h2 className="text-4xl font-black tracking-tight uppercase leading-none text-balance">
+                            Missão Cumprida!
+                        </h2>
+                        <p className="text-lg font-bold text-primary-foreground/80 text-balance">
+                            Você completou todas as {totalSets} séries do treino. Incrível! 🚀
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4 pt-6">
+                            <div className="bg-background/20 p-4 rounded-2xl flex flex-col pt-3">
+                                <span className="text-[10px] uppercase font-black tracking-widest text-primary-foreground/60">Tempo</span>
+                                <span className="text-2xl font-black">{formatTime(workoutSeconds)}</span>
+                            </div>
+                            <div className="bg-background/20 p-4 rounded-2xl flex flex-col pt-3">
+                                <span className="text-[10px] uppercase font-black tracking-widest text-primary-foreground/60">Exercícios</span>
+                                <span className="text-2xl font-black">{exercises.length}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button
+                        onClick={handleFinish}
+                        disabled={isFinishing}
+                        className="w-full max-w-sm h-16 rounded-[2rem] bg-background text-primary font-black uppercase text-lg tracking-widest shadow-2xl hover:scale-[1.02] transition-transform mt-4"
+                    >
+                        {isFinishing ? "Salvando..." : "Salvar e Sair"}
+                    </Button>
+                </div>
+            )}
+
             {/* Floating Timer (Descanso) */}
             <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 flex items-center gap-3 z-50">
                 <Card
@@ -342,10 +412,11 @@ export default function ActiveWorkout() {
                     </div>
                 </Card>
                 <Button
-                    onClick={() => { finishWorkout(); router.push("/student/dashboard"); }}
+                    onClick={handleFinish}
+                    disabled={isFinishing}
                     className="h-16 px-6 rounded-2xl bg-foreground text-background font-black uppercase text-xs tracking-widest shadow-2xl"
                 >
-                    Finalizar
+                    {isFinishing ? "Salvando..." : "Finalizar"}
                 </Button>
             </div>
 
