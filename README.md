@@ -1,4 +1,4 @@
-# AcaSaaS | Gestão de Treinos Premium 🚀
+# Academia SaaS | Gestão de Treinos Premium 🚀
 
 AcaSaaS é a plataforma definitiva desenvolvida para personal trainers e alunos que buscam performance de elite. Com uma interface moderna e otimizada, permite a gestão completa de periodizações, acompanhamento de cargas e evolução de resultados.
 
