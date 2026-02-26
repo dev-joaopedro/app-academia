@@ -1,0 +1,5 @@
+package com.joaopedro.appacademia;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {}
